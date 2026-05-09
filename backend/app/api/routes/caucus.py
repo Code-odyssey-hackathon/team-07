@@ -38,7 +38,7 @@ async def verify_token(data: TokenVerify, db: Session = Depends(get_db)):
             valid=True, party_id=party.id, dispute_id=dispute.id,
             role=party.role, party_name=party.name,
             dispute_title=dispute.title, dispute_type=dispute.dispute_type,
-            status=dispute.status
+            language=party.language, status=dispute.status
         )
     except Exception:
         return TokenVerifyResponse(valid=False)

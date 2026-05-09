@@ -4,6 +4,7 @@ import { useAppContext } from '../App'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Users, AlertTriangle, CheckCircle, Wifi, WifiOff, Bot, User, MessageSquare, Flame } from 'lucide-react'
 import EscalationTracker from '../components/EscalationTracker'
+import VoiceInput from '../components/VoiceInput'
 
 export default function JointSession() {
   const { disputeId } = useParams()
@@ -17,11 +18,27 @@ export default function JointSession() {
   const [connected, setConnected] = useState(false)
   const [signal, setSignal] = useState(null)
   const [escalationScore, setEscalationScore] = useState(0)
+  const [partyInfo, setPartyInfo] = useState(null)
   const wsRef = useRef(null)
   const chatEndRef = useRef(null)
 
-  useEffect(() => { loadSession(); connectWebSocket(); return () => { if (wsRef.current) wsRef.current.close() } }, [disputeId])
+  useEffect(() => { 
+    loadSession(); 
+    connectWebSocket(); 
+    if (token) verifyToken();
+    return () => { if (wsRef.current) wsRef.current.close() } 
+  }, [disputeId])
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  const verifyToken = async () => {
+    try {
+      const res = await fetch(`${API_URL}/caucus/verify-token`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }),
+      })
+      const data = await res.json()
+      if (data.valid) setPartyInfo(data)
+    } catch (e) { console.error('Failed to verify token', e) }
+  }
 
   const loadSession = async () => {
     try {
@@ -199,7 +216,12 @@ export default function JointSession() {
 
         <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', gap: 12 }}>
-            <input className="input-field" placeholder="Type your message to the joint session..."
+            <VoiceInput
+              language={partyInfo?.language || 'en'}
+              onResult={(transcript) => setInput(prev => prev ? prev + ' ' + transcript : transcript)}
+              disabled={!!signal}
+            />
+            <input className="input-field" placeholder="Type or speak your message..."
               value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()}
               disabled={!!signal} style={{ borderRadius: 16 }} />
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}

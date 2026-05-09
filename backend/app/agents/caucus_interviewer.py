@@ -9,7 +9,7 @@ import re
 import logging
 from typing import Dict, Optional, List
 from app.services.groq_service import groq_service
-from app.prompts.mediator_prompts import CAUCUS_SYSTEM_PROMPT, _get_domain
+from app.prompts.mediator_prompts import CAUCUS_SYSTEM_PROMPT, _get_domain, _get_language_name
 
 logger = logging.getLogger("madhyastha.agent.caucus")
 
@@ -26,13 +26,14 @@ class CaucusInterviewer:
 
         # Get domain-specific context
         domain = _get_domain(self.dispute_type)
+        language_name = _get_language_name(self.language)
 
         self.system_prompt = CAUCUS_SYSTEM_PROMPT.format(
             dispute_type=self.dispute_type,
             dispute_title=self.dispute_title,
             party_role=self.party_role,
             party_name=self.party_name,
-            language=self.language,
+            language_name=language_name,
             domain_label=domain["label"],
             domain_law_ref=domain["law_ref"],
             step1_example=domain["step1_example"],

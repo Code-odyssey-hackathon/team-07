@@ -102,6 +102,7 @@ class TokenVerifyResponse(BaseModel):
     party_name: Optional[str] = None
     dispute_title: Optional[str] = None
     dispute_type: Optional[str] = None
+    language: Optional[str] = None
     status: Optional[str] = None
 
 

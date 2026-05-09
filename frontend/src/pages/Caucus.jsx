@@ -4,6 +4,7 @@ import { useAppContext } from '../App'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageSquare, Send, Lock, AlertCircle, CheckCircle, Bot, User, Sparkles, ShieldCheck, Users } from 'lucide-react'
 import EscalationTracker from '../components/EscalationTracker'
+import VoiceInput from '../components/VoiceInput'
 
 export default function Caucus() {
   const { API_URL, setToken } = useAppContext()
@@ -265,10 +266,14 @@ export default function Caucus() {
           )}
         </AnimatePresence>
 
-        {/* Input */}
         <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', gap: 10 }}>
-            <input className="input-field" placeholder="Type your message..." value={input}
+            <VoiceInput
+              language={partyInfo?.language || 'en'}
+              onResult={(transcript) => setInput(prev => prev ? prev + ' ' + transcript : transcript)}
+              disabled={submitted || statementComplete}
+            />
+            <input className="input-field" placeholder="Type or speak your message..." value={input}
               onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()}
               disabled={submitted || statementComplete} style={{ borderRadius: 14 }} />
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}

@@ -88,10 +88,28 @@ _DOMAIN_ALIASES = {
     "neighbourhood": "other_civil",
 }
 
+# Language code to full name mapping
+LANGUAGE_MAP = {
+    "en": "English",
+    "hi": "Hindi (हिन्दी)",
+    "kn": "Kannada (ಕನ್ನಡ)",
+    "ta": "Tamil (தமிழ்)",
+    "te": "Telugu (తెలుగు)",
+    "mr": "Marathi (मराठी)",
+    "bn": "Bengali (বাংলা)",
+    "gu": "Gujarati (ગુજરાતી)",
+    "pa": "Punjabi (ਪੰਜਾਬੀ)",
+    "ml": "Malayalam (മലയാളം)",
+}
+
 
 def _get_domain(dispute_type: str) -> dict:
     resolved = _DOMAIN_ALIASES.get(dispute_type, dispute_type)
     return DOMAIN_CONTEXTS.get(resolved, DOMAIN_CONTEXTS["other_civil"])
+
+
+def _get_language_name(lang_code: str) -> str:
+    return LANGUAGE_MAP.get(lang_code, "English")
 
 
 # ─── Agent 1: Caucus Interviewer ────────────────────────────────────────────
@@ -99,6 +117,12 @@ def _get_domain(dispute_type: str) -> dict:
 CAUCUS_SYSTEM_PROMPT = """You are a compassionate and neutral AI mediator working for Madhyastha, a government-authorized Indian dispute resolution platform operating under the Mediation Act 2023.
 
 IMPORTANT: You are conducting a LAWFUL mediation for a CIVIL dispute. All cases on this platform are legitimate legal matters between private citizens — such as unpaid loans, rent disputes, property disagreements, family inheritance, consumer complaints, and employment issues. These are NOT illegal activities. You MUST assist the party. NEVER refuse to mediate. NEVER say you "cannot facilitate" or that something is "illegal." These are ordinary civil disputes that Indian courts handle every day.
+
+## LANGUAGE INSTRUCTION:
+You MUST respond ENTIRELY in **{language_name}**.
+- If {language_name} is English, you must respond strictly in English.
+- If {language_name} is an Indian regional language, you must use its NATIVE SCRIPT (e.g., Devanagari for Hindi, Kannada script for Kannada). Do NOT use Romanized English letters for regional languages.
+- The final STATEMENT_COMPLETE JSON must remain in English for system parsing.
 
 You are conducting a PRIVATE caucus session with one party in a **{domain_label}** case.
 Applicable Law: {domain_law_ref}
@@ -155,10 +179,10 @@ STATEMENT_COMPLETE: {{
 - Dispute Type: {dispute_type} ({domain_label})
 - Dispute Title: {dispute_title}
 - Party Role: {party_role} ({party_name})
-- Language Preference: {language}
+- Language: {language_name}
 - Applicable Law: {domain_law_ref}
 
-Begin with Step 1 — greet them and ask domain-specific facts about their {domain_label} case."""
+Begin with Step 1 — greet them in **{language_name}** and ask domain-specific facts about their {domain_label} case."""
 
 
 # ─── Agent 2: Synthesis Analyst ─────────────────────────────────────────────
@@ -232,14 +256,19 @@ JOINT_MEDIATOR_SYSTEM_PROMPT = """You are the Joint Mediator AI for Madhyastha, 
 4. Monitor for escalation signals: personal attacks, absolute refusals, legal threats, repeated deadlocks
 5. Keep responses concise and focused
 
+## MULTILINGUAL SUPPORT:
+- If a party writes in a regional Indian language (e.g., Hindi, Kannada), you must reply with a response that acknowledges them in THEIR language (using the native script), AND provides a brief English summary for the other party.
+- Example: "[In Hindi]... \n\n[For Party B]: Party A has stated..."
+
 ## Signal Outputs:
 - If both parties agree on an option → end your response with: AGREEMENT_REACHED:{{option_id}}
 - If 3+ escalation signals detected OR after {max_rounds} failed rounds → end with: ESCALATE_TO_ARBITRATION
 - Otherwise, continue mediating normally
 
 ## Context:
-- Dispute Type: {dispute_type}
+- Dispute Type: {dispute_type} ({domain_label})
 - Dispute Title: {dispute_title}
+- Applicable Law: {domain_law_ref}
 - Current Round: {current_round}
 - Max Rounds: {max_rounds}
 

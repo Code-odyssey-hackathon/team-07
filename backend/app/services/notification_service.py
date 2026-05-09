@@ -1,6 +1,9 @@
 """
 Madhyastha — Notification Service
 SMTP Email notifications with graceful fallbacks
+
+All functions are SYNCHRONOUS because smtplib is blocking I/O.
+FastAPI BackgroundTasks will run them in a threadpool automatically.
 """
 import logging
 import smtplib
@@ -16,8 +19,9 @@ from app.core.config import settings
 logger = logging.getLogger("madhyastha.notify")
 
 
-async def send_email(to_email: str, subject: str, body: str, attachment_path: Optional[str] = None) -> bool:
-    """Send email via SMTP (Gmail) with anti-spam compliant structure"""
+def send_email(to_email: str, subject: str, body: str, attachment_path: Optional[str] = None) -> bool:
+    """Send email via SMTP (Gmail) with anti-spam compliant structure.
+    This is a SYNC function — BackgroundTasks runs it in a threadpool."""
     if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
         logger.info(f"[MOCK EMAIL] To: {to_email} | Subject: {subject}")
         logger.info(f"[MOCK EMAIL] Body preview: {_strip_html(body)[:120]}...")
@@ -77,6 +81,8 @@ async def send_email(to_email: str, subject: str, body: str, attachment_path: Op
 
     except Exception as e:
         logger.error(f"✉ Email FAILED to {to_email}: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
@@ -89,25 +95,24 @@ def _strip_html(html: str) -> str:
     return text.strip()
 
 
-async def send_sms(phone: str, message: str) -> bool:
-    """SMS placeholder — sends via email-to-SMS or logs mock.
-    For production, integrate a provider like Twilio or TextLocal."""
+def send_sms(phone: str, message: str) -> bool:
+    """SMS placeholder — logs mock. For production, integrate Twilio or TextLocal."""
     logger.info(f"[MOCK SMS] To: {phone} | Message: {message[:80]}...")
     return True
 
 
-async def notify_parties(dispute, parties, subject: str, message: str):
+def notify_parties(dispute, parties, subject: str, message: str):
     """Send notifications to all parties in a dispute"""
     html_message = f"<p>{message}</p>"
     for party in parties:
         if party.email:
-            await send_email(party.email, subject, html_message)
+            send_email(party.email, subject, html_message)
         if party.phone:
-            await send_sms(party.phone, message)
+            send_sms(party.phone, message)
 
 
-async def send_dispute_link(party_name: str, email: str, role: str, link: str, dispute_title: str):
-    """Send dispute session link to a party"""
+def send_dispute_link(party_name: str, email: str, role: str, link: str, dispute_title: str):
+    """Send dispute session link to a party (sync — called via BackgroundTasks)"""
     body = f"""
     <h3>Hello {party_name},</h3>
     <p>You have been invited to participate in dispute resolution for:</p>
@@ -124,11 +129,11 @@ async def send_dispute_link(party_name: str, email: str, role: str, link: str, d
         This link is private and unique to you. Do not share it with the other party.
     </p>
     """
-    await send_email(email, f"Dispute Invitation: {dispute_title}", body)
+    send_email(email, f"Dispute Invitation: {dispute_title}", body)
 
 
-async def send_agreement_notification(party_name: str, email: str, dispute_title: str, pdf_path: Optional[str] = None):
-    """Send agreement PDF to a party"""
+def send_agreement_notification(party_name: str, email: str, dispute_title: str, pdf_path: Optional[str] = None):
+    """Send agreement PDF to a party (sync — called via BackgroundTasks)"""
     body = f"""
     <h3>Dear {party_name},</h3>
     <p>An agreement has been finalized for your dispute:</p>
@@ -138,4 +143,4 @@ async def send_agreement_notification(party_name: str, email: str, dispute_title
     </div>
     <p>This agreement is legally binding under <strong>Section 22, Mediation Act 2023</strong>.</p>
     """
-    await send_email(email, f"Agreement Finalized: {dispute_title}", body, attachment_path=pdf_path)
+    send_email(email, f"Agreement Finalized: {dispute_title}", body, attachment_path=pdf_path)

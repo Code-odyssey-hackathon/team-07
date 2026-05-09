@@ -7,7 +7,7 @@ import json
 import logging
 from typing import Dict, List, Optional
 from app.services.groq_service import groq_service
-from app.prompts.mediator_prompts import JOINT_MEDIATOR_SYSTEM_PROMPT
+from app.prompts.mediator_prompts import JOINT_MEDIATOR_SYSTEM_PROMPT, _get_domain
 
 logger = logging.getLogger("madhyastha.agent.joint")
 
@@ -47,8 +47,12 @@ class JointMediator:
                 for msg in session_history[-20:]  # Last 20 messages
             ])
 
+        domain = _get_domain(self.dispute_type)
+
         system_prompt = JOINT_MEDIATOR_SYSTEM_PROMPT.format(
             dispute_type=self.dispute_type,
+            domain_label=domain["label"],
+            domain_law_ref=domain["law_ref"],
             dispute_title=self.dispute_title,
             current_round=current_round,
             max_rounds=self.max_rounds,
