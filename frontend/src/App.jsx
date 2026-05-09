@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-do
 import { AnimatePresence, motion } from 'framer-motion'
 import { Scale, Home, FileText, BarChart3, Menu, X, Sparkles, ChevronDown } from 'lucide-react'
 import Register from './pages/Register'
+import Login from './pages/Login'
 import Caucus from './pages/Caucus'
 import JointSession from './pages/JointSession'
 import Agreement from './pages/Agreement'
@@ -66,15 +67,7 @@ function Navbar() {
 
           {/* CTA (Right) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }} className="nav-links">
-            <Link to="/arbitrator-dashboard" style={{ 
-              padding: '10px 20px', fontSize: '0.85rem', borderRadius: 100,
-              background: 'linear-gradient(135deg, #ed8936, #dd6b20)',
-              color: 'white', fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)',
-              boxShadow: '0 4px 15px rgba(237,137,54,0.3)'
-            }}>
-              ⚖️ Arbitrator
-            </Link>
-            <Link to="/register" className="btn-primary-dark" style={{ 
+            <Link to="/login" className="btn-primary-dark" style={{ 
               padding: '12px 28px', fontSize: '0.9rem', borderRadius: 100,
               background: 'linear-gradient(135deg, #1e1b4b, #312e81)',
               color: 'white', fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)',
@@ -103,7 +96,7 @@ function Navbar() {
                   {label}
                 </Link>
               ))}
-              <Link to="/register" onClick={() => setOpen(false)}
+              <Link to="/login" onClick={() => setOpen(false)}
                 style={{ background: '#0f172a', color: 'white', padding: '12px', borderRadius: 12, textAlign: 'center', fontWeight: 600 }}>
                 Get Started
               </Link>
@@ -129,6 +122,7 @@ function AnimatedRoutes() {
       <motion.div key={location.pathname} {...pageTransition}>
         <Routes location={location}>
           <Route path="/" element={<Landing />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/caucus" element={<Caucus />} />
           <Route path="/session/:disputeId" element={<JointSession />} />

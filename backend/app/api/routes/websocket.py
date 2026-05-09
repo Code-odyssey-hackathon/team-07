@@ -113,6 +113,7 @@ async def websocket_session(websocket: WebSocket, dispute_id: str, token: str = 
                 ai_msg = {
                     "type": "message", "role": "mediator", "party_name": "AI Mediator",
                     "content": result["ai_response"],
+                    "escalation_score": result.get("escalation_score", 0),
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 }
                 await manager.send_to_all_in_session(dispute_id, ai_msg)
@@ -135,11 +136,12 @@ async def websocket_session(websocket: WebSocket, dispute_id: str, token: str = 
                     })
                 elif result.get("signal") == "ESCALATE_TO_ARBITRATION":
                     dispute.status = "escalated_arbitration"
-                    dispute.escalation_reason = "AI mediation unable to reach agreement. Escalated to arbitration."
+                    dispute.escalation_reason = f"Escalated after {result.get('escalation_score', 0)} escalation signals detected during mediation."
                     if session:
                         session.status = "escalated"
                     await manager.send_to_all_in_session(dispute_id, {
-                        "type": "signal", "signal": "ESCALATE_TO_ARBITRATION"
+                        "type": "signal", "signal": "ESCALATE_TO_ARBITRATION",
+                        "escalation_score": result.get("escalation_score", 0)
                     })
 
                 db.commit()

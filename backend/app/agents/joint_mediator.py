@@ -63,7 +63,7 @@ class JointMediator:
             system_prompt=system_prompt,
             user_message=prefixed_message,
             temperature=0.6,
-            max_tokens=1024,
+            max_tokens=500,
         )
 
         # Check for signals
@@ -102,16 +102,31 @@ class JointMediator:
             # Check for escalation signals in user message
             escalation_keywords = [
                 "court", "lawyer", "sue", "legal action", "refuse",
-                "never", "impossible", "waste of time"
+                "never", "impossible", "waste of time", "no deal",
+                "police", "fir", "not acceptable", "i reject", "walk away",
+                "forget it", "go to hell", "cheat", "fraud", "liar"
             ]
             if any(kw in user_message.lower() for kw in escalation_keywords):
                 self.escalation_signals += 1
-                logger.info(f"Escalation signal detected: {self.escalation_signals}/3")
+                logger.info(f"Escalation signal detected ({self.escalation_signals}/1): '{user_message[:50]}'")
+
+            # Auto-escalate on first violation
+            if self.escalation_signals >= 1:
+                signal = "ESCALATE_TO_ARBITRATION"
+                ai_message = (
+                    "I've noticed significant escalation in this mediation. "
+                    "After careful consideration, I believe this dispute requires "
+                    "a binding decision by a certified arbitrator. I am now escalating "
+                    "this case to arbitration under the Arbitration & Conciliation Act, 1996. "
+                    "An arbitrator will review the full case and issue a binding award."
+                )
+                logger.info(f"Auto-escalation triggered at {self.escalation_signals} signals")
 
         return {
             "ai_response": ai_message,
             "signal": signal,
             "agreed_option": agreed_option,
+            "escalation_score": self.escalation_signals,
         }
 
     def get_opening_message(self) -> str:

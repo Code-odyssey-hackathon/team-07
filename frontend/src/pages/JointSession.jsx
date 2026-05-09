@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { useAppContext } from '../App'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Users, AlertTriangle, CheckCircle, Wifi, WifiOff, Bot, User, MessageSquare } from 'lucide-react'
+import { Send, Users, AlertTriangle, CheckCircle, Wifi, WifiOff, Bot, User, MessageSquare, Flame } from 'lucide-react'
 import EscalationTracker from '../components/EscalationTracker'
 
 export default function JointSession() {
@@ -16,6 +16,7 @@ export default function JointSession() {
   const [input, setInput] = useState('')
   const [connected, setConnected] = useState(false)
   const [signal, setSignal] = useState(null)
+  const [escalationScore, setEscalationScore] = useState(0)
   const wsRef = useRef(null)
   const chatEndRef = useRef(null)
 
@@ -38,9 +39,15 @@ export default function JointSession() {
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data)
       if (data.type === 'history') setMessages(data.messages || [])
-      else if (data.type === 'message') setMessages(p => [...p, data])
+      else if (data.type === 'message') {
+        setMessages(p => [...p, data])
+        if (data.escalation_score !== undefined) setEscalationScore(data.escalation_score)
+      }
       else if (data.type === 'system') setMessages(p => [...p, { role: 'system', content: data.content }])
-      else if (data.type === 'signal') setSignal(data.signal)
+      else if (data.type === 'signal') {
+        setSignal(data.signal)
+        if (data.escalation_score !== undefined) setEscalationScore(data.escalation_score)
+      }
     }
   }
 
@@ -73,8 +80,24 @@ export default function JointSession() {
             <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 2 }}>Real-time session with AI Mediator</p>
           </div>
         </div>
-        <div className={`badge ${connected ? 'badge-success' : 'badge-danger'}`} style={{ gap: 6 }}>
-          {connected ? <Wifi size={12} /> : <WifiOff size={12} />} {connected ? 'Live' : 'Disconnected'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Escalation Score Indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 100,
+            background: escalationScore >= 1 ? 'rgba(252,92,101,0.1)' : 'rgba(0,0,0,0.03)',
+            border: `1px solid ${escalationScore >= 1 ? 'rgba(252,92,101,0.25)' : 'rgba(0,0,0,0.06)'}` }}>
+            <Flame size={12} style={{ color: escalationScore >= 1 ? '#fc5c65' : '#94a3b8' }} />
+            <div style={{ width: 8, height: 8, borderRadius: '50%', transition: 'all 0.5s',
+              background: escalationScore >= 1 ? '#fc5c65' : 'rgba(0,0,0,0.08)',
+              boxShadow: escalationScore >= 1 ? '0 0 6px rgba(252,92,101,0.4)' : 'none'
+            }} />
+            <span style={{ fontSize: '0.7rem', fontWeight: 600,
+              color: escalationScore >= 1 ? '#fc5c65' : '#94a3b8' }}>
+              {escalationScore}/1
+            </span>
+          </div>
+          <div className={`badge ${connected ? 'badge-success' : 'badge-danger'}`} style={{ gap: 6 }}>
+            {connected ? <Wifi size={12} /> : <WifiOff size={12} />} {connected ? 'Live' : 'Disconnected'}
+          </div>
         </div>
       </motion.div>
 

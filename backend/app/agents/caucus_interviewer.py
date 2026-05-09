@@ -9,7 +9,7 @@ import re
 import logging
 from typing import Dict, Optional, List
 from app.services.groq_service import groq_service
-from app.prompts.mediator_prompts import CAUCUS_SYSTEM_PROMPT
+from app.prompts.mediator_prompts import CAUCUS_SYSTEM_PROMPT, _get_domain
 
 logger = logging.getLogger("madhyastha.agent.caucus")
 
@@ -24,12 +24,22 @@ class CaucusInterviewer:
         self.party_name = dispute_context.get("party_name", "Party")
         self.language = dispute_context.get("language", "en")
 
+        # Get domain-specific context
+        domain = _get_domain(self.dispute_type)
+
         self.system_prompt = CAUCUS_SYSTEM_PROMPT.format(
             dispute_type=self.dispute_type,
             dispute_title=self.dispute_title,
             party_role=self.party_role,
             party_name=self.party_name,
             language=self.language,
+            domain_label=domain["label"],
+            domain_law_ref=domain["law_ref"],
+            step1_example=domain["step1_example"],
+            step2_example=domain["step2_example"],
+            step3_example=domain["step3_example"],
+            step4_example=domain["step4_example"],
+            step5_example=domain["step5_example"],
         )
 
     async def chat(
@@ -50,7 +60,7 @@ class CaucusInterviewer:
             user_message=user_message,
             chat_history=chat_history,
             temperature=0.7,
-            max_tokens=1024,
+            max_tokens=400,
         )
 
         # Check if statement extraction is complete

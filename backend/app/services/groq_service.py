@@ -24,8 +24,9 @@ class GroqService:
 
     def __init__(self):
         self.client = None
-        self.model = settings.GROQ_MODEL
-        self.fallback_model = "llama-3.1-8b-instant"  # Higher rate limits, used when primary is rate-limited
+        self.model = settings.GROQ_MODEL  # Fast model (8b-instant)
+        self.quality_model = "llama-3.3-70b-versatile"  # For complex tasks (agreement drafting, reports)
+        self.fallback_models = ["llama-3.1-8b-instant", "llama3-8b-8192"]  # Fallback chain
 
         if GROQ_AVAILABLE and settings.GROQ_API_KEY:
             try:
@@ -42,9 +43,15 @@ class GroqService:
         user_message: str,
         chat_history: Optional[List[Dict[str, str]]] = None,
         temperature: float = 0.7,
-        max_tokens: int = 2048,
+        max_tokens: int = 512,
+        use_quality_model: bool = False,
     ) -> str:
-        """Send a chat completion request to Groq"""
+        """Send a chat completion request to Groq
+        
+        Args:
+            use_quality_model: If True, use the 70b model for higher quality output.
+                             Use for agreement drafting, reports, synthesis. Default False for speed.
+        """
         messages = [{"role": "system", "content": system_prompt}]
 
         # Add chat history if provided
@@ -59,8 +66,13 @@ class GroqService:
         messages.append({"role": "user", "content": user_message})
 
         if self.client:
-            # Try primary model first, fall back to smaller model on rate limit
-            for model in [self.model, self.fallback_model]:
+            # Build model priority list based on task type
+            if use_quality_model:
+                models_to_try = [self.quality_model, self.model] + self.fallback_models
+            else:
+                models_to_try = [self.model] + self.fallback_models
+
+            for model in models_to_try:
                 try:
                     response = self.client.chat.completions.create(
                         model=model,
@@ -68,13 +80,13 @@ class GroqService:
                         temperature=temperature,
                         max_tokens=max_tokens,
                     )
-                    if model != self.model:
+                    if model != models_to_try[0]:
                         logger.info(f"Used fallback model: {model}")
                     return response.choices[0].message.content
                 except Exception as e:
                     error_str = str(e)
                     if "429" in error_str or "rate_limit" in error_str:
-                        logger.warning(f"Rate limited on {model}, trying fallback...")
+                        logger.warning(f"Rate limited on {model}, trying next...")
                         continue
                     else:
                         logger.error(f"Groq API error on {model}: {e}")
@@ -92,12 +104,13 @@ class GroqService:
         temperature: float = 0.3,
         max_tokens: int = 4096,
     ) -> Dict[str, Any]:
-        """Send a chat request expecting JSON response"""
+        """Send a chat request expecting JSON response — uses quality model for better output"""
         response_text = await self.chat(
             system_prompt=system_prompt,
             user_message=user_message,
             temperature=temperature,
             max_tokens=max_tokens,
+            use_quality_model=True,
         )
 
         # Try to extract JSON from the response

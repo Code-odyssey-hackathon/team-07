@@ -65,7 +65,7 @@ export default function Landing() {
 
           {/* Buttons */}
           <motion.div {...fadeUp(0.3)} style={{ display: 'flex', gap: 16 }}>
-            <Link to="/register" style={{ 
+            <Link to="/login" style={{ 
               display: 'inline-flex', alignItems: 'center', gap: 10, padding: '16px 36px', 
               background: 'linear-gradient(135deg, #1e1b4b, #312e81)', color: 'white', 
               borderRadius: 100, fontSize: '1.05rem', fontWeight: 500,
