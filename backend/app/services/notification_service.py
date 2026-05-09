@@ -4,6 +4,7 @@ SMTP Email notifications with graceful fallbacks
 """
 import logging
 import smtplib
+import re
 import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -16,19 +17,28 @@ logger = logging.getLogger("madhyastha.notify")
 
 
 async def send_email(to_email: str, subject: str, body: str, attachment_path: Optional[str] = None) -> bool:
-    """Send email via SMTP (Gmail)"""
+    """Send email via SMTP (Gmail) with anti-spam compliant structure"""
     if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
         logger.info(f"[MOCK EMAIL] To: {to_email} | Subject: {subject}")
+        logger.info(f"[MOCK EMAIL] Body preview: {_strip_html(body)[:120]}...")
         return True
     try:
-        msg = MIMEMultipart()
+        # Root container — allows attachments
+        msg = MIMEMultipart("mixed")
         msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_USER}>"
         msg["To"] = to_email
         msg["Subject"] = f"[Madhyastha] {subject}"
 
-        # HTML body with branding
+        # Alternative container — plain text + HTML (anti-spam)
+        body_container = MIMEMultipart("alternative")
+
+        # Plain text version (auto-generated from HTML)
+        plain_text = _strip_html(body)
+        body_container.attach(MIMEText(plain_text, "plain"))
+
+        # HTML version with branding
         html_body = f"""
-        <div style="font-family: 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px; border-radius: 12px 12px 0 0;">
                 <h2 style="color: white; margin: 0;">⚖️ Madhyastha</h2>
                 <p style="color: rgba(255,255,255,0.8); margin: 4px 0 0; font-size: 0.85rem;">AI-Powered Dispute Resolution</p>
@@ -38,12 +48,14 @@ async def send_email(to_email: str, subject: str, body: str, attachment_path: Op
                 <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
                 <p style="font-size: 0.75rem; color: #94a3b8;">
                     This is an automated message from Madhyastha AI Dispute Resolution Platform.<br/>
-                    Legal Anchors: Mediation Act 2023 | Arbitration & Conciliation Act 1996
+                    Legal Anchors: Mediation Act 2023 | Arbitration &amp; Conciliation Act 1996
                 </p>
             </div>
         </div>
         """
-        msg.attach(MIMEText(html_body, "html"))
+        body_container.attach(MIMEText(html_body, "html"))
+
+        msg.attach(body_container)
 
         # Attach PDF if provided
         if attachment_path and os.path.exists(attachment_path):
@@ -60,12 +72,21 @@ async def send_email(to_email: str, subject: str, body: str, attachment_path: Op
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
             server.send_message(msg)
 
-        logger.info(f"Email sent to {to_email}: {subject}")
+        logger.info(f"✉ Email sent to {to_email}: {subject}")
         return True
 
     except Exception as e:
-        logger.error(f"Email failed to {to_email}: {e}")
+        logger.error(f"✉ Email FAILED to {to_email}: {e}")
         return False
+
+
+def _strip_html(html: str) -> str:
+    """Strip HTML tags to produce a plain-text version for anti-spam compliance"""
+    text = re.sub(r'<br\s*/?>', '\n', html)
+    text = re.sub(r'<hr[^>]*>', '\n---\n', text)
+    text = re.sub(r'<[^>]+>', '', text)
+    text = re.sub(r'\n\s*\n', '\n\n', text)
+    return text.strip()
 
 
 async def send_sms(phone: str, message: str) -> bool:

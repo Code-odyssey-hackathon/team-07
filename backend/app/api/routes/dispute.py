@@ -4,7 +4,7 @@ Registration, status, listing, and stats
 """
 import logging
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.core.dependencies import get_db
@@ -15,13 +15,14 @@ from app.schemas.schemas import (
     DisputeRegister, DisputeResponse, DisputeRegistrationResult,
     DisputeStatusResponse, StatsSummary, MessageResponse
 )
+from app.services.notification_service import send_dispute_link
 
 logger = logging.getLogger("madhyastha.api.dispute")
 router = APIRouter(prefix="/dispute", tags=["Dispute Management"])
 
 
 @router.post("/register", response_model=DisputeRegistrationResult)
-async def register_dispute(data: DisputeRegister, db: Session = Depends(get_db)):
+async def register_dispute(data: DisputeRegister, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Register a new dispute and generate party session tokens"""
     if data.dispute_type not in DISPUTE_TYPES:
         raise HTTPException(status_code=400, detail=f"Invalid dispute type. Must be one of: {DISPUTE_TYPES}")
@@ -59,13 +60,28 @@ async def register_dispute(data: DisputeRegister, db: Session = Depends(get_db))
     db.refresh(dispute)
 
     frontend_url = settings.FRONTEND_URL
+    party_a_link = f"{frontend_url}/caucus?token={party_a.session_token}"
+    party_b_link = f"{frontend_url}/caucus?token={party_b.session_token}"
+
+    # Send email notifications in background (non-blocking)
+    if data.party_a.email:
+        background_tasks.add_task(
+            send_dispute_link, data.party_a.name, data.party_a.email,
+            "party_a", party_a_link, data.title
+        )
+    if data.party_b.email:
+        background_tasks.add_task(
+            send_dispute_link, data.party_b.name, data.party_b.email,
+            "party_b", party_b_link, data.title
+        )
+
     return DisputeRegistrationResult(
         dispute=DisputeResponse.model_validate(dispute),
         party_a_token=party_a.session_token,
         party_b_token=party_b.session_token,
-        party_a_link=f"{frontend_url}/caucus?token={party_a.session_token}",
-        party_b_link=f"{frontend_url}/caucus?token={party_b.session_token}",
-        message="Dispute registered successfully. Share the links with both parties."
+        party_a_link=party_a_link,
+        party_b_link=party_b_link,
+        message="Dispute registered successfully. Session links have been emailed to both parties."
     )
 
 
